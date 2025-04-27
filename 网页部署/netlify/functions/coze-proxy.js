@@ -2,7 +2,7 @@
 
 const API_URL = 'https://api.coze.cn/v3/chat';
 const BOT_ID = '7496404783675637779';
-const TOKEN = 'pat_zYq2Cv9p5icZ2gtGqbTGzTUjWIokjhlvvefbTVW04SRwCMdKMfn3fs83HkTvE3YN';
+const TOKEN = 'pat_uPNHfKdabKSn3Nkr6Rc6I6opI7ZndyZqSKseT67tGYmRzfECZas49fDf232aOjpl';
 
 exports.handler = async (event, context) => {
     const userInput = event.queryStringParameters.data;
