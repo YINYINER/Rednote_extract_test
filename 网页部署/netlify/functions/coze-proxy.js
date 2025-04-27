@@ -1,8 +1,8 @@
 // netlify/functions/coze-proxy.js
 
 const API_URL = 'https://api.coze.cn/v3/chat';
-const BOT_ID = '7496404783675637779'; // 替换这里
-const TOKEN = 'pat_zYq2Cv9p5icZ2gtGqbTGzTUjWIokjhlvvefbTVW04SRwCMdKMfn3fs83HkTvE3YN'; // 替换这里
+const BOT_ID = '7496404783675637779';
+const TOKEN = 'pat_zYq2Cv9p5icZ2gtGqbTGzTUjWIokjhlvvefbTVW04SRwCMdKMfn3fs83HkTvE3YN';
 
 exports.handler = async (event, context) => {
     const userInput = event.queryStringParameters.data;
@@ -17,7 +17,7 @@ exports.handler = async (event, context) => {
     const cozePayload = {
         bot_id: BOT_ID,
         user_id: 'netlify_user_' + Date.now(),
-        stream: true,
+        stream: false, // 关闭流式，直接拿完整回复
         auto_save_history: false,
         additional_messages: [
             {
@@ -33,9 +33,7 @@ exports.handler = async (event, context) => {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${TOKEN}`,
-                'Content-Type': 'application/json',
-                'Accept': 'text/event-stream',
-                'Connection': 'keep-alive'
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(cozePayload)
         });
@@ -52,25 +50,14 @@ exports.handler = async (event, context) => {
             };
         }
 
-        const reader = cozeResponse.body.getReader();
-        const decoder = new TextDecoder();
-        let result = '';
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            result += decoder.decode(value, { stream: true });
-        }
-
+        const result = await cozeResponse.json();
         return {
             statusCode: 200,
             headers: {
-                'Content-Type': 'text/event-stream',
-                'Cache-Control': 'no-cache',
-                'Connection': 'keep-alive',
+                'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*'
             },
-            body: result // 返回完整的字符串
+            body: JSON.stringify(result)
         };
 
     } catch (error) {
