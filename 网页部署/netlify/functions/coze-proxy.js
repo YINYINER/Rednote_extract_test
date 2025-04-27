@@ -56,25 +56,18 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // 设置正确的响应头
-        const headers = {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type'
-        };
-
-        // 创建一个 Transform Stream 来处理和转发响应
-        const stream = new TransformStream();
-        cozeResponse.body.pipeTo(stream.writable);
-
+        // 直接返回流式响应
         return {
             statusCode: 200,
-            headers,
-            body: stream.readable,
-            isBase64Encoded: false
+            headers: {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type'
+            },
+            body: cozeResponse.body
         };
 
     } catch (error) {

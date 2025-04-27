@@ -51,43 +51,34 @@ async function sendRequest() {
             .then(response => {
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
-                let buffer = '';
-
-                function processText(text) {
-                    const lines = text.split('\n');
-                    lines.forEach(line => {
-                        if (line.startsWith('data: ')) {
-                            try {
-                                const data = JSON.parse(line.slice(6));
-                                if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
-                                    messageDiv.textContent += data.choices[0].delta.content;
-                                }
-                            } catch (e) {
-                                console.error('解析响应数据失败:', e);
-                            }
-                        }
-                    });
-                }
-
-                function pump() {
+                
+                function readStream() {
                     return reader.read().then(({done, value}) => {
                         if (done) {
-                            if (buffer) {
-                                processText(buffer);
-                            }
                             return;
                         }
-
-                        buffer += decoder.decode(value, {stream: true});
-                        const lines = buffer.split('\n\n');
-                        buffer = lines.pop(); // 保留最后一个可能不完整的事件
-                        lines.forEach(line => processText(line));
                         
-                        return pump();
+                        const chunk = decoder.decode(value, {stream: true});
+                        const lines = chunk.split('\n');
+                        
+                        lines.forEach(line => {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.slice(6));
+                                    if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
+                                        messageDiv.textContent += data.choices[0].delta.content;
+                                    }
+                                } catch (e) {
+                                    console.error('解析响应数据失败:', e);
+                                }
+                            }
+                        });
+                        
+                        return readStream();
                     });
                 }
-
-                return pump();
+                
+                return readStream();
             })
             .catch(error => {
                 console.error('请求失败:', error);
