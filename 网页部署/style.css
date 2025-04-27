@@ -1,0 +1,203 @@
+/* 全局样式与 Apple 风格字体 */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    background-color: #f5f5f7; /* Apple 浅灰色背景 */
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* 顶部对齐 */
+    min-height: 100vh;
+    box-sizing: border-box;
+    color: #1d1d1f; /* Apple 主要文字颜色 */
+}
+
+/* 聊天容器 */
+.chat-container {
+    background-color: #ffffff;
+    border-radius: 18px; /* Apple 圆角风格 */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 40px); /* 占据大部分视口高度 */
+    max-height: 800px; /* 限制最大高度 */
+    box-sizing: border-box;
+}
+
+h1 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1d1d1f;
+    margin: 0 0 20px 0;
+    text-align: center;
+}
+
+/* 响应区域 */
+.response-area {
+    flex-grow: 1; /* 占据剩余空间 */
+    overflow-y: auto; /* 内容过多时滚动 */
+    margin-bottom: 15px;
+    padding-right: 10px; /* 留出滚动条空间 */
+    word-wrap: break-word;
+    line-height: 1.6;
+}
+
+/* 消息气泡 */
+.message {
+    background-color: #e5e5ea; /* 对方消息气泡颜色 */
+    color: #1d1d1f;
+    padding: 10px 15px;
+    border-radius: 18px;
+    margin-bottom: 10px;
+    max-width: 80%;
+    display: inline-block; /* 让背景适应内容 */
+    clear: both;
+    float: left; /* 默认靠左 */
+    opacity: 0; /* 初始透明，用于动画 */
+    transform: translateY(10px); /* 初始向下偏移，用于动画 */
+    animation: fadeInSlideUp 0.4s ease forwards; /* 应用入场动画 */
+}
+
+.message.user {
+    background-color: #007aff; /* 用户消息气泡颜色 (Apple 蓝) */
+    color: #ffffff;
+    float: right; /* 用户消息靠右 */
+    text-align: left; /* 保证文字左对齐 */
+}
+
+.message.error {
+    background-color: #ffebee; /* 浅红色背景 */
+    color: #d32f2f; /* 深红色文字 */
+    border: 1px solid #ffcdd2;
+    float: none; /* 错误消息居中或靠左 */
+    max-width: 100%;
+    text-align: center;
+}
+
+.message.loading {
+    background-color: transparent;
+    color: #8e8e93; /* 灰色文字 */
+    text-align: center;
+    float: none;
+    max-width: 100%;
+    /* 可以添加一个 CSS 加载动画 */
+    position: relative;
+    padding-left: 25px; /* 为动画留空间 */
+}
+
+/* 加载动画 (可选) */
+.message.loading::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 50%;
+    width: 12px;
+    height: 12px;
+    margin-top: -6px;
+    border: 2px solid #c7c7cc;
+    border-top-color: #007aff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+/* 输入区域 */
+.input-area {
+    display: flex;
+    align-items: flex-end; /* 底部对齐 */
+    padding-top: 15px;
+    border-top: 1px solid #e5e5ea; /* 分隔线 */
+}
+
+#userInput {
+    flex-grow: 1;
+    padding: 10px 15px;
+    border: 1px solid #d1d1d6;
+    border-radius: 18px; /* 圆角 */
+    font-size: 16px;
+    line-height: 1.4;
+    margin-right: 10px;
+    resize: none; /* 禁止拖动调整大小 */
+    overflow-y: hidden; /* 隐藏滚动条，由 JS 控制高度 */
+    min-height: 22px; /* 最小高度，匹配 line-height */
+    max-height: 100px; /* 限制最大高度 */
+    font-family: inherit; /* 继承 body 字体 */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease; /* 过渡效果 */
+}
+
+#userInput:focus {
+    outline: none;
+    border-color: #007aff; /* 聚焦时边框变蓝 */
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1); /* 模拟 Apple 聚焦光晕 */
+}
+
+#sendButton {
+    background-color: #007aff; /* Apple 蓝色 */
+    color: white;
+    border: none;
+    border-radius: 50%; /* 圆形按钮 */
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease; /* 过渡效果 */
+    flex-shrink: 0; /* 防止按钮被压缩 */
+}
+
+#sendButton:hover {
+    background-color: #005ecb; /* 悬停时颜色加深 */
+}
+
+#sendButton:active {
+    transform: scale(0.9); /* 点击时缩小 */
+}
+
+#sendButton:disabled {
+    background-color: #d1d1d6; /* 禁用状态颜色 */
+    cursor: not-allowed;
+}
+
+#sendButton:disabled svg {
+    fill: #8e8e93; /* 禁用状态图标颜色 */
+}
+
+#sendButton svg {
+    fill: white; /* 默认图标颜色 */
+    transition: fill 0.2s ease;
+}
+
+/* 滚动条样式 (可选，增加精致感) */
+.response-area::-webkit-scrollbar {
+    width: 6px;
+}
+
+.response-area::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.response-area::-webkit-scrollbar-thumb {
+    background-color: #c7c7cc;
+    border-radius: 3px;
+}
+
+/* 定义动画 */
+@keyframes fadeInSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
