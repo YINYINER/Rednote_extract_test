@@ -46,6 +46,7 @@ exports.handler = async (event, context) => {
             body: JSON.stringify(cozePayload)
         });
 
+        // 修改响应处理部分
         if (!cozeResponse.ok) {
             const errorBody = await cozeResponse.text();
             console.error('Coze API Error:', cozeResponse.status, errorBody);
@@ -55,18 +56,25 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // 4. 将 Coze 的流式响应直接返回给客户端
-        // Netlify Functions 支持直接返回流
-        // 需要设置正确的 Content-Type 为 text/event-stream
+        // 设置正确的响应头
+        const headers = {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type'
+        };
+
+        // 创建一个 Transform Stream 来处理和转发响应
+        const stream = new TransformStream();
+        cozeResponse.body.pipeTo(stream.writable);
+
         return {
             statusCode: 200,
-            headers: {
-                'Content-Type': 'text/event-stream',
-                'Cache-Control': 'no-cache',
-                'Connection': 'keep-alive',
-            },
-            body: cozeResponse.body, // 直接传递 Coze 的响应体流
-            isBase64Encoded: false // 必须设置
+            headers,
+            body: stream.readable,
+            isBase64Encoded: false
         };
 
     } catch (error) {
