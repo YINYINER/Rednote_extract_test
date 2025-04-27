@@ -1,0 +1,11 @@
+[build]
+  # 相对于仓库根目录的基础目录
+  base = "网页部署"
+  # 相对于基础目录的函数目录
+  functions = "netlify/functions"
+  # 相对于基础目录的发布目录 (你的静态文件)
+  publish = "."
+
+# 确保 Node.js 版本足够新以支持 dynamic import
+[functions]
+  node_bundler = "esbuild"
