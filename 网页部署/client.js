@@ -19,10 +19,6 @@ async function sendRequest() {
     userInputElement.disabled = true;
     userInputElement.value = '';
 
-    // 创建消息div
-    responseElement.innerHTML = '<div class="message"></div>';
-    const messageDiv = responseElement.querySelector('.message');
-
     try {
         const response = await fetch('/.netlify/functions/coze-proxy?data=' + encodeURIComponent(userInput));
         
@@ -30,17 +26,21 @@ async function sendRequest() {
             throw new Error(`请求失败 (${response.status})`);
         }
 
+        // 创建消息div
+        responseElement.innerHTML = '<div class="message"></div>';
+        const messageDiv = responseElement.querySelector('.message');
+
+        // 处理流式响应
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        
+
         while (true) {
             const {done, value} = await reader.read();
-            
             if (done) break;
-            
+
             const chunk = decoder.decode(value, {stream: true});
             const lines = chunk.split('\n');
-            
+
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
                     try {
@@ -57,27 +57,12 @@ async function sendRequest() {
 
     } catch (error) {
         console.error('请求失败:', error);
-        responseElement.innerHTML = `<div class="error">请求出错: ${escapeHtml(error.message)}</div>`;
+        responseElement.innerHTML = `<div class="error">请求出错: ${error.message}</div>`;
     } finally {
         sendButton.disabled = false;
         userInputElement.disabled = false;
-        const loadingElement = responseElement.querySelector('.loading');
-        if (loadingElement) {
-            loadingElement.remove();
-        }
         userInputElement.focus();
     }
-}
-
-// --- 辅助函数：HTML 转义 (防止 XSS) ---
-function escapeHtml(unsafe) {
-    if (typeof unsafe !== 'string') return '';
-    return unsafe
-         .replace(/&/g, "&amp;")
-         .replace(/</g, "&lt;")
-         .replace(/>/g, "&gt;")
-         .replace(/"/g, "&quot;")
-         .replace(/'/g, "&#039;");
 }
 
 // --- 事件监听：按钮点击 ---
