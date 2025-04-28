@@ -51,6 +51,9 @@ exports.handler = async (event, context) => {
             };
         }
 
+        // 获取完整响应文本
+        const responseText = await cozeResponse.text();
+
         // 处理流式响应
         return {
             statusCode: 200,
@@ -60,7 +63,7 @@ exports.handler = async (event, context) => {
                 'Connection': 'keep-alive',
                 'Access-Control-Allow-Origin': '*'
             },
-            body: cozeResponse.body
+            body: responseText // 返回文本而非流对象
         };
 
     } catch (error) {
