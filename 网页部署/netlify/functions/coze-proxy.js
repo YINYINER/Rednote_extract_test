@@ -53,6 +53,25 @@ exports.handler = async (event, context) => {
 
         // 获取完整响应文本
         const responseText = await cozeResponse.text();
+        
+        // 处理响应文本，确保每行都是正确的 SSE 格式
+        const formattedLines = responseText
+            .split('\n')
+            .map(line => {
+                if (line.trim() && !line.startsWith('data:') && !line.startsWith('event:')) {
+                    try {
+                        // 尝试解析为 JSON (如果已经是 JSON 字符串)
+                        const parsed = JSON.parse(line.trim());
+                        // 添加 data: 前缀并重新序列化为 JSON
+                        return `data: ${JSON.stringify(parsed)}`;
+                    } catch (e) {
+                        // 如果不是 JSON，直接添加 data: 前缀
+                        return `data: ${line.trim()}`;
+                    }
+                }
+                return line; // 已经是正确格式的行直接返回
+            })
+            .join('\n');
 
         // 处理流式响应
         return {
@@ -63,7 +82,7 @@ exports.handler = async (event, context) => {
                 'Connection': 'keep-alive',
                 'Access-Control-Allow-Origin': '*'
             },
-            body: responseText // 返回文本而非流对象
+            body: formattedLines // 返回格式化后的文本
         };
 
     } catch (error) {
