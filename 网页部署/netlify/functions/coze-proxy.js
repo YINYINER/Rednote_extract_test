@@ -17,7 +17,7 @@ exports.handler = async (event, context) => {
     const cozePayload = {
         bot_id: BOT_ID,
         user_id: 'netlify_user_' + Date.now(),
-        stream: false, // 关闭流式，直接拿完整回复
+        stream: true, // 开启流式传输
         auto_save_history: false,
         additional_messages: [
             {
@@ -33,7 +33,8 @@ exports.handler = async (event, context) => {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${TOKEN}`,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept': 'text/event-stream' // 添加 Accept 头以支持流式传输
             },
             body: JSON.stringify(cozePayload)
         });
@@ -50,14 +51,16 @@ exports.handler = async (event, context) => {
             };
         }
 
-        const result = await cozeResponse.json();
+        // 处理流式响应
         return {
             statusCode: 200,
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
                 'Access-Control-Allow-Origin': '*'
             },
-            body: JSON.stringify(result)
+            body: cozeResponse.body
         };
 
     } catch (error) {
