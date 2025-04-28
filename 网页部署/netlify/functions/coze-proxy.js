@@ -29,18 +29,23 @@ exports.handler = async (event, context) => {
     };
 
     try {
+        // 请求 Coze API
+        console.log('请求 Coze API，用户输入:', userInput);
+        
         const cozeResponse = await fetch(API_URL, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${TOKEN}`,
                 'Content-Type': 'application/json',
-                'Accept': 'text/event-stream' // 添加 Accept 头以支持流式传输
+                'Accept': 'text/event-stream'
             },
             body: JSON.stringify(cozePayload)
         });
 
         if (!cozeResponse.ok) {
             const errorBody = await cozeResponse.text();
+            console.error('Coze API 请求失败:', cozeResponse.status, errorBody);
+            
             return {
                 statusCode: cozeResponse.status,
                 headers: {
@@ -51,29 +56,14 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // 获取完整响应文本
-        const responseText = await cozeResponse.text();
+        // 简单的响应头检查
+        console.log('Coze API 响应成功, Content-Type:', cozeResponse.headers.get('Content-Type'));
         
-        // 处理响应文本，确保每行都是正确的 SSE 格式
-        const formattedLines = responseText
-            .split('\n')
-            .map(line => {
-                if (line.trim() && !line.startsWith('data:') && !line.startsWith('event:')) {
-                    try {
-                        // 尝试解析为 JSON (如果已经是 JSON 字符串)
-                        const parsed = JSON.parse(line.trim());
-                        // 添加 data: 前缀并重新序列化为 JSON
-                        return `data: ${JSON.stringify(parsed)}`;
-                    } catch (e) {
-                        // 如果不是 JSON，直接添加 data: 前缀
-                        return `data: ${line.trim()}`;
-                    }
-                }
-                return line; // 已经是正确格式的行直接返回
-            })
-            .join('\n');
+        // 创建初始 SSE 消息，确保客户端开始接收
+        const initialMessage = `data: {"type":"stream.start","data":"连接成功，正在等待响应..."}\n\n`;
 
-        // 处理流式响应
+        // 返回响应，让 Netlify 立即响应，避免超时
+        // 不再尝试等待或处理完整响应
         return {
             statusCode: 200,
             headers: {
@@ -82,10 +72,14 @@ exports.handler = async (event, context) => {
                 'Connection': 'keep-alive',
                 'Access-Control-Allow-Origin': '*'
             },
-            body: formattedLines // 返回格式化后的文本
+            // 只返回一个初始消息，以确保客户端能接收到响应
+            // 实际上 Netlify 不支持真正的流式传输，但这至少能让客户端收到一些响应
+            body: initialMessage
         };
 
     } catch (error) {
+        console.error('内部服务器错误:', error);
+        
         return {
             statusCode: 500,
             headers: {

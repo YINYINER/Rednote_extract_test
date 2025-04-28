@@ -5,6 +5,11 @@ const userInputElement = document.getElementById('userInput');
 const responseElement = document.getElementById('response');
 const sendButton = document.getElementById('sendButton');
 
+// 配置 coze token 和 bot id，前端直接请求 Coze API
+const COZE_API_URL = 'https://api.coze.cn/v3/chat';
+const COZE_BOT_ID = '7496404783675637779';
+const COZE_API_TOKEN = 'pat_uPNHfKdabKSn3Nkr6Rc6I6opI7ZndyZqSKseT67tGYmRzfECZas49fDf232aOjpl';
+
 // --- 辅助函数：创建并添加消息 ---
 function addMessage(content, type = 'bot') { // type 可以是 'bot', 'user', 'error', 'loading'
     const messageDiv = document.createElement('div');
@@ -59,7 +64,126 @@ function escapeHtml(unsafe) {
          .replace(/'/g, "&#039;");
 }
 
-// --- 函数：发送请求到 Netlify Function ---
+// --- 修改版：直接调用 Coze API 的函数 ---
+async function requestCozeDirectly(userInput) {
+    try {
+        const loadingMessageDiv = addMessage('正在思考中...', 'loading'); // 显示加载提示
+        let botMessageDiv = null; // 用于存储机器人回复的 div
+        let currentBotContent = ''; // 用于累积机器人回复内容
+
+        // 构建请求体
+        const requestBody = {
+            bot_id: COZE_BOT_ID,
+            user_id: 'browser-user-' + Date.now(),
+            stream: true, // 启用流式响应
+            auto_save_history: false,
+            additional_messages: [
+                {
+                    role: 'user',
+                    content: userInput,
+                    content_type: 'text'
+                }
+            ]
+        };
+
+        // 发起 API 请求
+        const response = await fetch(COZE_API_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${COZE_API_TOKEN}`,
+                'Content-Type': 'application/json',
+                'Accept': 'text/event-stream'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Coze API 请求失败 (${response.status}): ${await response.text()}`);
+        }
+
+        // 移除加载提示
+        if (loadingMessageDiv) loadingMessageDiv.remove();
+        // 创建机器人消息 div
+        botMessageDiv = addMessage('', 'bot');
+
+        // 读取流式响应
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+            const {done, value} = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, {stream: true});
+            console.log("收到块:", chunk);
+            
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const jsonData = line.slice(6).trim();
+                    if (jsonData) {
+                        try {
+                            const data = JSON.parse(jsonData);
+                            console.log("解析的数据:", data);
+                            
+                            if (data.message && data.message.type === 'answer' && data.message.content) {
+                                // 这是非流式部分（如果API混合返回）
+                                currentBotContent += data.message.content;
+                            } else if (data.type === 'stream.text.delta' && data.data) {
+                                // Coze 新版流式事件 delta
+                                currentBotContent += data.data;
+                            } else if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
+                                // 兼容旧的 OpenAI 格式 delta
+                                currentBotContent += data.choices[0].delta.content;
+                            }
+                            
+                            // 更新机器人消息内容
+                            if (botMessageDiv) {
+                                botMessageDiv.textContent = currentBotContent;
+                                // 滚动到底部
+                                responseElement.scrollTop = responseElement.scrollHeight;
+                            }
+                        } catch (e) {
+                            console.error('解析响应数据失败:', line, e);
+                        }
+                    }
+                } else if (line.startsWith('event: error')) {
+                    console.error('收到错误事件:', line);
+                } else if (line.startsWith('event: stream_end')) {
+                    console.log('流结束事件收到');
+                }
+            }
+        }
+
+        return true; // 成功完成
+    } catch (error) {
+        console.error('API 请求出错:', error);
+        addMessage(`请求出错: ${error.message}`, 'error');
+        return false;
+    }
+}
+
+// --- 函数：尝试通过 Netlify Function 发送请求 ---
+async function requestViaNetlify(userInput) {
+    try {
+        const response = await fetch('/.netlify/functions/coze-proxy?data=' + encodeURIComponent(userInput));
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`请求失败 (${response.status}): ${escapeHtml(errorText) || '未知错误'}`);
+        }
+        
+        // 这里我们不会处理返回的初始消息，因为它只是一个占位符
+        // 我们将立即切换到直接调用 Coze API
+        return true;
+    } catch (error) {
+        console.warn('Netlify 函数请求失败, 切换到直接请求:', error);
+        return false;
+    }
+}
+
+// --- 函数：发送请求 ---
 async function sendRequest() {
     const userInput = userInputElement.value.trim();
     if (!userInput) {
@@ -76,86 +200,21 @@ async function sendRequest() {
     userInputElement.value = ''; // 清空输入框
     adjustTextareaHeight(); // 重置输入框高度
 
-    const loadingMessageDiv = addMessage('正在思考中...', 'loading'); // 显示加载提示
-
-    let botMessageDiv = null; // 用于存储机器人回复的 div
-    let currentBotContent = ''; // 用于累积机器人回复内容
-
     try {
-        const response = await fetch('/.netlify/functions/coze-proxy?data=' + encodeURIComponent(userInput));
-
-        if (!response.ok) {
-            const errorText = await response.text(); // 尝试读取错误文本
-            throw new Error(`请求失败 (${response.status}): ${escapeHtml(errorText) || '未知错误'}`);
+        // 先尝试通过 Netlify 函数发送
+        const netlifySuccess = await requestViaNetlify(userInput);
+        
+        // 如果 Netlify 函数失败，直接调用 Coze API
+        if (!netlifySuccess) {
+            await requestCozeDirectly(userInput);
         }
-
-        // 移除加载提示
-        if (loadingMessageDiv) loadingMessageDiv.remove();
-        // 创建机器人消息 div
-        botMessageDiv = addMessage('', 'bot');
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-
-        while (true) {
-            const {done, value} = await reader.read();
-            if (done) break;
-
-            const chunk = decoder.decode(value, {stream: true});
-            // console.log("Chunk:", chunk); // 调试用
-            const lines = chunk.split('\n');
-
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const jsonData = line.slice(6).trim();
-                    if (jsonData) {
-                        try {
-                            const data = JSON.parse(jsonData);
-                            // console.log("Data:", data); // 调试用
-                            if (data.message && data.message.type === 'answer' && data.message.content) {
-                                // 这是非流式部分（如果API混合返回）
-                                currentBotContent += data.message.content;
-                            } else if (data.type === 'stream.text.delta' && data.data) {
-                                // Coze 新版流式事件 delta
-                                currentBotContent += data.data;
-                            } else if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
-                                // 兼容旧的 OpenAI 格式 delta
-                                currentBotContent += data.choices[0].delta.content;
-                            }
-                            // 更新机器人消息内容
-                            if (botMessageDiv) {
-                                botMessageDiv.textContent = currentBotContent;
-                                // 滚动到底部
-                                responseElement.scrollTop = responseElement.scrollHeight;
-                            }
-                        } catch (e) {
-                            console.error('解析响应数据失败:', line, e);
-                            // 可以在这里添加一个错误提示到界面
-                        }
-                    }
-                } else if (line.startsWith('event: error')) {
-                     console.error('Received error event from stream');
-                     // 可以在这里处理流中的错误事件
-                } else if (line.startsWith('event: stream_end')) {
-                    console.log('Stream ended event received.');
-                    // 可以在这里处理流结束事件，例如确保按钮可用
-                }
-            }
-        }
-
     } catch (error) {
-        console.error('请求失败:', error);
-        // 移除加载提示
-        if (loadingMessageDiv) loadingMessageDiv.remove();
-        // 移除可能已部分显示的机器人回复
-        if (botMessageDiv) botMessageDiv.remove();
-        addMessage(`请求出错: ${error.message}`, 'error'); // 显示错误消息
+        console.error('请求处理出错:', error);
+        addMessage(`请求出错: ${error.message}`, 'error');
     } finally {
         sendButton.disabled = false;
         userInputElement.disabled = false;
         userInputElement.focus();
-        // 确保滚动到底部
-        responseElement.scrollTop = responseElement.scrollHeight;
     }
 }
 
